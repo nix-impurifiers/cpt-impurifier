@@ -148,19 +148,18 @@ let
     };
   makeRuntimePackage =
     {
-      nixDependency ? "nix",
+      bundledNixStore ? null,
+      bundledNixNotices ? [ ],
+      nixDependency ? (if bundledNixStore == null then "nix" else null),
       pythonDependency ? "python3",
     }:
     buildPackage {
       name = "cpt-impurifier";
       version = core.runtimeVersion;
-      dependencies = [
-        nixDependency
-        pythonDependency
-      ];
+      dependencies = lib.optional (nixDependency != null) nixDependency ++ [ pythonDependency ];
       payload = pkgs.runCommand "cpt-impurifier-runtime-payload" { } ''
         mkdir -p $out
-        cp -r ${core.makeRuntimeTree { }}/. $out/
+        cp -r ${core.makeRuntimeTree { inherit bundledNixStore bundledNixNotices; }}/. $out/
         chmod -R u+w $out
         install -Dm644 ${hook} $out/etc/cpt/hooks/impurifier
         mkdir -p $out/usr/share/cpt-impurifier
@@ -216,6 +215,7 @@ in
     makeRuntimePackage
     makeRepository
     ;
+  makeNativePackage = args: buildPackage args;
   runtimePackage = makeRuntimePackage { };
   makeNetPackage = args: makePackage (args // { offline = false; });
   makeOfflinePackage = args: makePackage (args // { offline = true; });
